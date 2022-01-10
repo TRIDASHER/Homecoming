@@ -13,7 +13,8 @@ player_hit_boxes = pygame.sprite.Group()
 solids = pygame.sprite.Group()
 objects = pygame.sprite.Group()
 everything = pygame.sprite.Group()
-groups = [player_hit_boxes, solids, objects, everything]
+entities = pygame.sprite.Group()
+groups = [player_hit_boxes, solids, objects, everything, entities]
 
 
 def load_image(name, colorkey=None):
@@ -53,12 +54,16 @@ class Player(pygame.sprite.Sprite):
         self.head_hit_box = HitBox(player_hit_boxes, x + 10, y, 70, 1)
         self.hp = 100
         self.damage_cooldown = 0
-        self.my_hit_boxes = pygame.sprite.Group()
-        self.my_hit_boxes.add(self.tp_hit_box, self.head_hit_box, self.down_hit_box, self)
+        player_hit_boxes.add(self.tp_hit_box, self.head_hit_box, self.down_hit_box, self)
 
     def update(self, *args):
         self.speed += self.accel
         keys = pygame.key.get_pressed()
+
+        self.down_hit_box.set_pos(self.rect.x + 7, self.rect.y + 90)
+        self.tp_hit_box.set_pos(self.rect.x + 7, self.rect.y + 89)
+        self.head_hit_box.set_pos(self.rect.x + 10, self.rect.y)
+
         for s in solids:
             if pygame.sprite.collide_rect(self.head_hit_box, s):
                 self.speed = self.speed.real + 0j
@@ -89,12 +94,18 @@ class Player(pygame.sprite.Sprite):
                     self.speed += -21j
                 if pygame.sprite.collide_rect(s, self.tp_hit_box):
                     self.rect.y += s.rect.y - self.rect.y - 90
-            if pygame.sprite.spritecollide(s, self.my_hit_boxes, False) and s.__class__ == Fire and self.damage_cooldown < 0:
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Fire and \
+                    self.damage_cooldown < 0:
                 self.hurt(25)
 
-        self.down_hit_box.set_pos(self.rect.x + 7, self.rect.y + 90)
-        self.tp_hit_box.set_pos(self.rect.x + 7, self.rect.y + 89)
-        self.head_hit_box.set_pos(self.rect.x + 10, self.rect.y)
+        if pygame.sprite.groupcollide(player_hit_boxes, entities, False, False):
+            sprites = pygame.sprite.groupcollide(player_hit_boxes, entities, False, False)
+            ent = [i[0] for i in list(sprites.values())]
+            classes = list(map(lambda z: z.__class__, ent))
+            if Health in classes:
+                self.heal(25)
+            for i in ent:
+                i.remove(everything, entities, objects)
 
         self.rect.x += self.speed.real
         self.rect.y += self.speed.imag
@@ -116,6 +127,9 @@ class Player(pygame.sprite.Sprite):
         if self.damage_cooldown <= 0:
             self.hp -= hp
             self.damage_cooldown = 30
+
+    def heal(self, hp):
+        self.hp += hp if self.hp + hp <= 100 else 100 - self.hp
 
     def draw_hud(self):
         pygame.draw.rect(canvas, (255 * (1 - self.hp / 100), 255 * (self.hp / 100), 0), (25, 25, self.hp, 20))
@@ -153,10 +167,47 @@ class HitBox(pygame.sprite.Sprite):
         self.rect.x, self.rect.y = x, y
 
 
+class Platform(SolidObject):
+    image = load_image("platform.png")
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+        self.image = Platform.image
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x, y
+
+
+class FakePlatform(Platform):
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+
+    def update(self):
+        if pygame.sprite.spritecollide(self, player_hit_boxes, False):
+            self.remove(everything, objects, solids)
+            self.kill()
+
+
+class Entity(pygame.sprite.Sprite):
+    def __init__(self, *group, x, y):
+        super().__init__(*group, everything, objects, entities)
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x, y
+
+
+class Health(Entity):
+    image = load_image("health.png")
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group, everything, objects, x=x, y=y)
+
+
 object_colors = {
     "(34, 177, 76)": SolidObject,
     "(255, 242, 0)": Player,
-    "(237, 28, 36)": Fire
+    "(237, 28, 36)": Fire,
+    "(127, 127, 127)": Platform,
+    "(195, 195, 195)": FakePlatform,
+    "(255, 174, 201)": Health
 }
 
 
@@ -171,10 +222,12 @@ def convert_map(picture, map_file_name):
                         color = f"{pixels[x, y]}"
                         print(object_colors[color], x, y)
                         map_file.write(f"{color};{x};{y}\n")
+                    elif pixels[x, y] not in ((255, 255, 255), (0, 0, 0)):
+                        sys.stderr.write("Warning: unknown color!")
 
 
 def open_map(map_file_name):
-    player = None
+    owner = None
     for g in groups:
         g.empty()
     with open(os.path.join("data", map_file_name)) as map_file:
@@ -182,11 +235,11 @@ def open_map(map_file_name):
             line = i.split(";")
             print(object_colors[line[0]])
             if object_colors[line[0]] == Player:
-                print("player found")
-                player = object_colors[line[0]](x=int(line[1]), y=int(line[2]))
+                print("owner found")
+                owner = object_colors[line[0]](x=int(line[1]), y=int(line[2]))
             else:
                 object_colors[line[0]](x=int(line[1]), y=int(line[2]))
-    return player
+    return owner
 
 
 if __name__ == '__main__':
