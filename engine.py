@@ -17,6 +17,7 @@ everything = pygame.sprite.Group()
 entities = pygame.sprite.Group()
 groups = [player_hit_boxes, solids, objects, everything, entities]
 PLAYER_THERE = pygame.event.Event(pygame.USEREVENT)
+NEXT_LEVEL = pygame.event.Event(pygame.USEREVENT + 1)
 
 
 def load_image(name, colorkey=None):
@@ -96,9 +97,10 @@ class Player(pygame.sprite.Sprite):
                     self.speed += -21j
                 if pygame.sprite.collide_rect(s, self.tp_hit_box):
                     self.rect.y += s.rect.y - self.rect.y - 90
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Fire and \
-                    self.damage_cooldown < 0:
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Fire:
                 self.hurt(25)
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Ending:
+                pygame.event.post(NEXT_LEVEL)
 
         if pygame.sprite.groupcollide(player_hit_boxes, entities, False, False):
             sprites = pygame.sprite.groupcollide(player_hit_boxes, entities, False, False)
@@ -149,6 +151,14 @@ class SolidObject(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+
+
+class Ending(SolidObject):
+    image = load_image("ending.png")
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+        self.image = Ending.image
 
 
 class Fire(SolidObject):
@@ -244,7 +254,8 @@ object_colors = {
     "(237, 28, 36)": Fire,
     "(127, 127, 127)": Platform,
     "(195, 195, 195)": FakePlatform,
-    "(255, 174, 201)": Health
+    "(255, 174, 201)": Health,
+    "(163, 73, 164)": Ending
 }
 
 
@@ -278,4 +289,5 @@ def open_map(map_file_name):
 
 
 if __name__ == '__main__':
-    convert_map("test_map1.png", "map1.hcm")
+    num_map = int(input("Map number:"))
+    convert_map(f"map{num_map}.png", f"map{num_map}.hcm")

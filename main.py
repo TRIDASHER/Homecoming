@@ -8,6 +8,7 @@ fps = 60
 debug_hud = False
 player = None
 there = False
+current_map = 1
 
 
 def go_to_main_menu():
@@ -33,11 +34,17 @@ if __name__ == "__main__":
                     debug_hud = not debug_hud
             if event.type == pygame.USEREVENT:
                 there = True
-                player = open_map("map1.hcm")
+                player = open_map(f"map{current_map}.hcm")
                 print("there")
+            if event == NEXT_LEVEL:
+                there = True
+                current_map += 1
+                player = open_map(f"map{current_map}.hcm")
+                print("next")
+
         if there:
             if not player.alive:
-                player = open_map("map1.hcm")
+                player = open_map(f"map{current_map}.hcm")
             if player.rect.x >= 600:
                 for i in everything:
                     i.rect.x -= 5
