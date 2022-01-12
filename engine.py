@@ -1,5 +1,6 @@
 import os
 import sys
+
 import pygame
 from PIL import Image
 
@@ -15,6 +16,7 @@ objects = pygame.sprite.Group()
 everything = pygame.sprite.Group()
 entities = pygame.sprite.Group()
 groups = [player_hit_boxes, solids, objects, everything, entities]
+PLAYER_THERE = pygame.event.Event(pygame.USEREVENT)
 
 
 def load_image(name, colorkey=None):
@@ -195,10 +197,45 @@ class Entity(pygame.sprite.Sprite):
 
 
 class Health(Entity):
-    image = load_image("health.png")
+    image = load_image("health.png", colorkey=-1)
 
     def __init__(self, *group, x, y):
         super().__init__(*group, everything, objects, x=x, y=y)
+
+
+class Button(pygame.sprite.Sprite):
+    image = pygame.surface.Surface((0, 0))
+
+    def __init__(self, x, y, w, h, color, line_width, rad, text, action, parameter, *group):
+        super().__init__(*group)
+        objects.add(self)
+        everything.add(self)
+        self.image = Button.image
+        self.rect = pygame.rect.Rect(x, y, w, h)
+        self.color = color
+        self.width = line_width
+        self.rad = rad
+        self.text = text
+        self.action = action
+        self.parameter = parameter
+        self.result = None
+        print("created")
+
+    def update(self):
+        pygame.draw.rect(canvas, self.color, self.rect, self.width, self.rad)
+        text = font.render(self.text, False, "black")
+        canvas.blit(text, (self.rect.x, self.rect.centery))
+        if pygame.mouse.get_pressed(3)[0]:
+            if self.rect.collidepoint(pygame.mouse.get_pos()):
+                self.clicked()
+
+    def clicked(self):
+        self.result = self.action(self.parameter)
+
+    def get_result(self):
+        res = self.result
+        self.result = None
+        return res
 
 
 object_colors = {
@@ -223,7 +260,7 @@ def convert_map(picture, map_file_name):
                         print(object_colors[color], x, y)
                         map_file.write(f"{color};{x};{y}\n")
                     elif pixels[x, y] not in ((255, 255, 255), (0, 0, 0)):
-                        sys.stderr.write("Warning: unknown color!")
+                        sys.stderr.write("Warning: unknown color!\n")
 
 
 def open_map(map_file_name):
@@ -233,9 +270,7 @@ def open_map(map_file_name):
     with open(os.path.join("data", map_file_name)) as map_file:
         for i in map_file.read().split("\n")[:-1]:
             line = i.split(";")
-            print(object_colors[line[0]])
             if object_colors[line[0]] == Player:
-                print("owner found")
                 owner = object_colors[line[0]](x=int(line[1]), y=int(line[2]))
             else:
                 object_colors[line[0]](x=int(line[1]), y=int(line[2]))
@@ -243,4 +278,4 @@ def open_map(map_file_name):
 
 
 if __name__ == '__main__':
-    convert_map("test_map1.png", "test_map1.hcm")
+    convert_map("test_map1.png", "map1.hcm")
