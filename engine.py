@@ -16,7 +16,8 @@ objects = pygame.sprite.Group()
 everything = pygame.sprite.Group()
 entities = pygame.sprite.Group()
 groups = [player_hit_boxes, solids, objects, everything, entities]
-PLAYER_THERE = pygame.event.Event(pygame.USEREVENT)
+STARTED = pygame.event.Event(pygame.USEREVENT)
+PLAYER_THERE = pygame.event.Event(pygame.USEREVENT + 2)
 NEXT_LEVEL = pygame.event.Event(pygame.USEREVENT + 1)
 
 
@@ -229,7 +230,7 @@ class Button(pygame.sprite.Sprite):
         self.action = action
         self.parameter = parameter
         self.result = None
-        print("created")
+        self.is_pressed = False
 
     def update(self):
         pygame.draw.rect(canvas, self.color, self.rect, self.width, self.rad)
@@ -238,9 +239,13 @@ class Button(pygame.sprite.Sprite):
         if pygame.mouse.get_pressed(3)[0]:
             if self.rect.collidepoint(pygame.mouse.get_pos()):
                 self.clicked()
+                self.is_pressed = True
+        else:
+            self.is_pressed = False
 
     def clicked(self):
         self.result = self.action(self.parameter)
+
 
     def get_result(self):
         res = self.result
