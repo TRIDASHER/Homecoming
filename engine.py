@@ -15,9 +15,13 @@ solids = pygame.sprite.Group()
 objects = pygame.sprite.Group()
 everything = pygame.sprite.Group()
 entities = pygame.sprite.Group()
-groups = [player_hit_boxes, solids, objects, everything, entities]
+static_butts = pygame.sprite.Group()
+groups = [player_hit_boxes, solids, objects, everything, entities, static_butts]
+
 PLAYER_THERE = pygame.event.Event(pygame.USEREVENT)
 NEXT_LEVEL = pygame.event.Event(pygame.USEREVENT + 1)
+LEFT = pygame.event.Event(pygame.USEREVENT + 2)
+RIGHT = pygame.event.Event(pygame.USEREVENT + 3)
 
 
 def load_image(name, colorkey=None):
@@ -79,11 +83,16 @@ class Player(pygame.sprite.Sprite):
                 else:
                     self.rect.x -= 1
                     self.speed = self.speed if self.speed.real > 0 else 0 + self.speed.imag * 1j
-            if keys[pygame.K_d]:
+
+            left = True if static_butts.sprites()[0].is_pressed else False
+            right = True if static_butts.sprites()[1].is_pressed else False
+            jump = True if static_butts.sprites()[2].is_pressed else False
+
+            if keys[pygame.K_d] or right:
                 self.accel = self.accel.imag * 1j + 0.5
                 self.image = Player.image2
 
-            elif keys[pygame.K_a]:
+            elif keys[pygame.K_a] or left:
                 self.accel = self.accel.imag * 1j - 0.5
                 self.image = Player.image3
 
@@ -93,7 +102,7 @@ class Player(pygame.sprite.Sprite):
 
             if pygame.sprite.collide_rect(s, self.down_hit_box):
                 self.speed = self.speed.real + 0j
-                if pygame.key.get_pressed()[pygame.K_w]:
+                if pygame.key.get_pressed()[pygame.K_w] or jump:
                     self.speed += -21j
                 if pygame.sprite.collide_rect(s, self.tp_hit_box):
                     self.rect.y += s.rect.y - self.rect.y - 90
@@ -229,7 +238,7 @@ class Button(pygame.sprite.Sprite):
         self.action = action
         self.parameter = parameter
         self.result = None
-        print("created")
+        self.is_pressed = False
 
     def update(self):
         pygame.draw.rect(canvas, self.color, self.rect, self.width, self.rad)
@@ -238,6 +247,9 @@ class Button(pygame.sprite.Sprite):
         if pygame.mouse.get_pressed(3)[0]:
             if self.rect.collidepoint(pygame.mouse.get_pos()):
                 self.clicked()
+                self.is_pressed = True
+        else:
+            self.is_pressed = False
 
     def clicked(self):
         self.result = self.action(self.parameter)
@@ -285,6 +297,10 @@ def open_map(map_file_name):
                 owner = object_colors[line[0]](x=int(line[1]), y=int(line[2]))
             else:
                 object_colors[line[0]](x=int(line[1]), y=int(line[2]))
+    Button(20, 800, 70, 70, "yellow", 0, 0, "  <", pygame.event.post, LEFT, static_butts)
+    Button(95, 800, 70, 70, "yellow", 0, 0, "  >", pygame.event.post, RIGHT, static_butts)
+    Button(800, 800, 70, 70, "yellow", 0, 0, "  ^", pygame.event.post, RIGHT, static_butts)
+    Button(1140, 10, 70, 70, "yellow", 0, 0, "Exit", pygame.event.post, pygame.event.Event(pygame.K_ESCAPE), static_butts)
     return owner
 
 
