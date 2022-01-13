@@ -38,9 +38,11 @@ def go_to_main_menu():
 
 
 def go_to_level_choice():
+    with open(os.path.join("data", "progress"), "r", encoding="utf8") as progress:
+        opened = int(progress.read())
     for j in groups:
         j.empty()
-    for n in range(current_map):
+    for n in range(opened):
         levels.append(Button(100, n * 70 + 20, 100, 50, "yellow", 0, 5, f"{n + 1}", pygame.event.post,
                              parameter=PLAYER_THERE))
 
@@ -66,19 +68,21 @@ if __name__ == "__main__":
                 if cont_button.is_pressed:
                     go_to_level_choice()
             if event == PLAYER_THERE:
+                for b in levels:
+                    if b.is_pressed:
+                        current_map = int(b.text)
+                there = True
                 if new_game.is_pressed:
                     current_map = 1
-                else:
-                    for b in levels:
-                        if b.is_pressed:
-                            current_map = int(b.text)
-                there = True
                 player = open_map(f"map{current_map}.hcm")
             if event == NEXT_LEVEL:
                 there = True
                 current_map += 1
-                with open(os.path.join("data", "progress"), "w+", encoding="utf8") as progress:
-                    progress.write(str(current_map))
+                with open(os.path.join("data", "progress"), "r", encoding="utf8") as progress:
+                    opened = int(progress.read())
+                if opened < current_map:
+                    with open(os.path.join("data", "progress"), "w+", encoding="utf8") as progress:
+                        progress.write(str(current_map))
                 player = open_map(f"map{current_map}.hcm")
 
         if there:
