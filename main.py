@@ -63,14 +63,15 @@ if __name__ == "__main__":
                     there = False
                     go_to_main_menu()
             if event.type == pygame.USEREVENT:
-                if new_game.is_pressed:
-                    current_map = 1
                 if cont_button.is_pressed:
                     go_to_level_choice()
             if event == PLAYER_THERE:
-                for b in levels:
-                    if b.is_pressed:
-                        current_map = int(b.text)
+                if new_game.is_pressed:
+                    current_map = 1
+                else:
+                    for b in levels:
+                        if b.is_pressed:
+                            current_map = int(b.text)
                 there = True
                 player = open_map(f"map{current_map}.hcm")
             if event == NEXT_LEVEL:
