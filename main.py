@@ -16,7 +16,7 @@ try:
     with open(os.path.join("data", "progress"), "r", encoding="utf8") as progress:
         if progress:
             current_map = int(progress.read())
-            if current_map == -1:
+            if current_map in [-1, 1]:
                 raise FileNotFoundError
     not_first = True
 
@@ -77,6 +77,7 @@ if __name__ == "__main__":
                 player = open_map(f"map{current_map}.hcm")
             if event == NEXT_LEVEL:
                 there = True
+                not_first = True
                 current_map += 1
                 with open(os.path.join("data", "progress"), "r", encoding="utf8") as progress:
                     opened = int(progress.read())

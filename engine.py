@@ -53,8 +53,8 @@ class Player(pygame.sprite.Sprite):
         self.rect.y = y
         self.accel = complex(0, 1)
         self.speed = complex(0, 0)
-        self.tp_hit_box = HitBox(player_hit_boxes, x + 7, y + 90, 76, 1)
-        self.down_hit_box = HitBox(player_hit_boxes, x + 7, y + 90, 76, 1)
+        self.tp_hit_box = HitBox(player_hit_boxes, x + 7, y + 85, 76, 5)
+        self.down_hit_box = HitBox(player_hit_boxes, x + 7, y + 86, 76, 5)
         self.head_hit_box = HitBox(player_hit_boxes, x + 10, y, 70, 1)
         self.hp = 100
         self.damage_cooldown = 0
@@ -64,8 +64,8 @@ class Player(pygame.sprite.Sprite):
         self.speed += self.accel
         keys = pygame.key.get_pressed()
 
-        self.down_hit_box.set_pos(self.rect.x + 7, self.rect.y + 90)
-        self.tp_hit_box.set_pos(self.rect.x + 7, self.rect.y + 89)
+        self.down_hit_box.set_pos(self.rect.x + 7, self.rect.y + 86)
+        self.tp_hit_box.set_pos(self.rect.x + 7, self.rect.y + 84)
         self.head_hit_box.set_pos(self.rect.x + 10, self.rect.y)
 
         for s in solids:
@@ -96,12 +96,16 @@ class Player(pygame.sprite.Sprite):
                 self.speed = self.speed.real + 0j
                 if pygame.key.get_pressed()[pygame.K_w]:
                     self.speed += -21j
-                if pygame.sprite.collide_rect(s, self.tp_hit_box):
-                    self.rect.y += s.rect.y - self.rect.y - 90
+            if pygame.sprite.collide_rect(s, self.tp_hit_box):
+                self.rect.y += s.rect.y - self.rect.y - 90
             if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Fire:
                 self.hurt(25)
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Spikes:
+                self.hurt(100)
             if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Ending:
                 pygame.event.post(NEXT_LEVEL)
+        if abs(self.speed) >= 150:
+            self.hurt(100)
 
         if pygame.sprite.groupcollide(player_hit_boxes, entities, False, False):
             sprites = pygame.sprite.groupcollide(player_hit_boxes, entities, False, False)
@@ -168,6 +172,14 @@ class Fire(SolidObject):
     def __init__(self, *group, x, y):
         super().__init__(*group, x=x, y=y)
         self.image = Fire.image
+
+
+class Spikes(Fire):
+    image = load_image("spikes.png", colorkey=-1)
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+        self.image = Spikes.image
 
 
 class HitBox(pygame.sprite.Sprite):
@@ -246,7 +258,6 @@ class Button(pygame.sprite.Sprite):
     def clicked(self):
         self.result = self.action(self.parameter)
 
-
     def get_result(self):
         res = self.result
         self.result = None
@@ -260,7 +271,8 @@ object_colors = {
     "(127, 127, 127)": Platform,
     "(195, 195, 195)": FakePlatform,
     "(255, 174, 201)": Health,
-    "(163, 73, 164)": Ending
+    "(163, 73, 164)": Ending,
+    "(136, 0, 21)": Spikes
 }
 
 
