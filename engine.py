@@ -1,7 +1,7 @@
 import os
 import sys
-
 import pygame
+from random import random, choice, randint
 from PIL import Image
 
 pygame.init()
@@ -15,7 +15,9 @@ solids = pygame.sprite.Group()
 objects = pygame.sprite.Group()
 everything = pygame.sprite.Group()
 entities = pygame.sprite.Group()
-groups = [player_hit_boxes, solids, objects, everything, entities]
+targets = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
+groups = [player_hit_boxes, solids, objects, everything, entities, targets, bullets]
 STARTED = pygame.event.Event(pygame.USEREVENT)
 PLAYER_THERE = pygame.event.Event(pygame.USEREVENT + 2)
 NEXT_LEVEL = pygame.event.Event(pygame.USEREVENT + 1)
@@ -37,15 +39,20 @@ def load_image(name, colorkey=None):
     return image
 
 
+pygame.mouse.set_cursor((23, 23), load_image("cursor.png", colorkey=-1))
+
+
 class Player(pygame.sprite.Sprite):
     image = load_image("cube.png")
     image2 = load_image("cube_side.png", colorkey=-1)
+    image4 = load_image("cube_shooting.png")
     image3 = pygame.transform.flip(image2, True, False)
 
     def __init__(self, *group, x, y):
         super().__init__(*group)
         objects.add(self)
         everything.add(self)
+        targets.add(self)
         self.alive = True
         self.image = Player.image
         self.rect = self.image.get_rect()
@@ -58,6 +65,7 @@ class Player(pygame.sprite.Sprite):
         self.head_hit_box = HitBox(player_hit_boxes, x + 10, y, 70, 1)
         self.hp = 100
         self.damage_cooldown = 0
+        self.shoot_cooldown = 60
         player_hit_boxes.add(self.tp_hit_box, self.head_hit_box, self.down_hit_box, self)
 
     def update(self, *args):
@@ -65,7 +73,7 @@ class Player(pygame.sprite.Sprite):
         keys = pygame.key.get_pressed()
 
         self.down_hit_box.set_pos(self.rect.x + 7, self.rect.y + 86)
-        self.tp_hit_box.set_pos(self.rect.x + 7, self.rect.y + 84)
+        self.tp_hit_box.set_pos(self.rect.x + 7, self.rect.y + 85)
         self.head_hit_box.set_pos(self.rect.x + 10, self.rect.y)
 
         for s in solids:
@@ -80,17 +88,6 @@ class Player(pygame.sprite.Sprite):
                 else:
                     self.rect.x -= 1
                     self.speed = self.speed if self.speed.real > 0 else 0 + self.speed.imag * 1j
-            if keys[pygame.K_d]:
-                self.accel = self.accel.imag * 1j + 0.5
-                self.image = Player.image2
-
-            elif keys[pygame.K_a]:
-                self.accel = self.accel.imag * 1j - 0.5
-                self.image = Player.image3
-
-            else:
-                self.accel = self.accel.imag * 1j + 0
-                self.image = Player.image
 
             if pygame.sprite.collide_rect(s, self.down_hit_box):
                 self.speed = self.speed.real + 0j
@@ -98,14 +95,35 @@ class Player(pygame.sprite.Sprite):
                     self.speed += -21j
             if pygame.sprite.collide_rect(s, self.tp_hit_box):
                 self.rect.y += s.rect.y - self.rect.y - 90
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Fire:
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Fire, DangerousOrb]:
                 self.hurt(25)
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Spikes:
+                if s.__class__ == DangerousOrb:
+                    s.speed = complex(*s.rect.center) - complex(*self.rect.center)
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Spikes, BadWall]:
                 self.hurt(100)
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [BadTriangle]:
+                self.hurt(50)
             if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Ending:
                 pygame.event.post(NEXT_LEVEL)
         if abs(self.speed) >= 150:
             self.hurt(100)
+
+        if keys[pygame.K_d]:
+            self.accel = self.accel.imag * 1j + 0.5
+            self.image = Player.image2
+
+        elif keys[pygame.K_a]:
+            self.accel = self.accel.imag * 1j - 0.5
+            self.image = Player.image3
+
+        else:
+            self.accel = self.accel.imag * 1j + 0
+            self.image = Player.image
+            if pygame.mouse.get_pressed(3)[0]:
+                if self.shoot_cooldown <= 0:
+                    Fireball(x=self.rect.x + 22, y=self.rect.y + 20)
+                    self.shoot_cooldown = 60
+                self.image = Player.image4
 
         if pygame.sprite.groupcollide(player_hit_boxes, entities, False, False):
             sprites = pygame.sprite.groupcollide(player_hit_boxes, entities, False, False)
@@ -121,6 +139,7 @@ class Player(pygame.sprite.Sprite):
         self.speed = self.speed.real / 1.05 + self.speed.imag * 1j
         self.speed = round(self.speed.real, 3) + round(self.speed.imag, 3) * 1j
         self.damage_cooldown -= 1
+        self.shoot_cooldown -= 1
         if -0.2 <= self.speed.real < 0:
             self.speed = 0 + self.speed.imag * 1j
         if self.hp <= 0:
@@ -180,6 +199,124 @@ class Spikes(Fire):
     def __init__(self, *group, x, y):
         super().__init__(*group, x=x, y=y)
         self.image = Spikes.image
+
+
+class UnstableWall(SolidObject):
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+
+    def update(self):
+        if random() * 120 > 117:
+            self.remove(*groups)
+            BadWall(x=self.rect.x, y=self.rect.y)
+
+
+class BadWall(SolidObject):
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+        self.timer = 0
+        self.image = pygame.Surface((0, 0))
+
+    def update(self):
+        self.timer += 1
+        if self.timer >= randint(10, 40):
+            self.remove(*groups)
+            UnstableWall(x=self.rect.x, y=self.rect.y)
+        for _ in range(40):
+            pygame.draw.rect(canvas, choice(["blue", "black"]), pygame.Rect(self.rect.x + random() * 120 - 26,
+                                                                            self.rect.y + random() *
+                                                                            120 - 26, 20, 10))
+
+
+class DangerousOrb(pygame.sprite.Sprite):
+    image = load_image("orb.png", colorkey=-1)
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group)
+        objects.add(self)
+        everything.add(self)
+        solids.add(self)
+        self.image = DangerousOrb.image
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.accel = complex(0, 0)
+        self.speed = complex(0, 0)
+        self.target = targets.sprites()[0]
+
+    def update(self):
+        self.speed += self.accel
+        self.speed -= self.speed / 4
+        self.rect.x += self.speed.real
+        self.rect.y += self.speed.imag
+        target_pos = complex(self.target.rect.x, self.target.rect.y)
+        pos = complex(self.rect.x, self.rect.y)
+        self.accel = (target_pos - pos) * (1 / abs(target_pos - pos))
+
+
+class BadTriangle(pygame.sprite.Sprite):
+    image = load_image("triangle.png", colorkey=-1)
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group)
+        self.image = BadTriangle.image
+        self.rect = self.image.get_rect()
+        self.add(everything, objects, solids)
+        self.rect.x = x
+        self.rect.y = y
+        self.accel = complex(0, 0)
+        self.speed = complex(5, 0)
+        self.hit_boxes = pygame.sprite.Group()
+        self.right_box = HitBox(self.hit_boxes, self.rect.x + 91, self.rect.y + 5, 1, 70)
+        self.left_box = HitBox(self.hit_boxes, self.rect.x - 1, self.rect.y + 5, 1, 70)
+        self.right_down_box = HitBox(self.hit_boxes, self.rect.x + 90, self.rect.y + 90, 1, 1)
+        self.left_down_box = HitBox(self.hit_boxes, self.rect.x - 1, self.rect.y + 90, 1, 1)
+        self.hp = 100
+
+    def update(self):
+        self.speed += self.accel
+        self.rect.x += self.speed.real
+        self.right_box.set_pos(self.rect.x + 91, self.rect.y + 5)
+        self.left_box.set_pos(self.rect.x - 1, self.rect.y + 5)
+        self.right_down_box.set_pos(self.rect.x + 91, self.rect.y + 91)
+        self.left_down_box.set_pos(self.rect.x - 1, self.rect.y + 91)
+        blockers = pygame.sprite.Group(*player_hit_boxes.sprites(), *solids.sprites())
+        if pygame.sprite.spritecollide(self.left_box, blockers, False) or \
+                not pygame.sprite.spritecollide(self.left_down_box, blockers, False):
+            self.speed = -self.speed
+        if pygame.sprite.spritecollide(self.right_box, blockers, False) or \
+                not pygame.sprite.spritecollide(self.right_down_box, blockers, False):
+            self.speed = -self.speed
+        if self.hp <= 0:
+            self.remove(*groups)
+        pygame.draw.rect(canvas, (255 * (1 - self.hp / 100), 255 * (self.hp / 100), 0),
+                         (self.rect.x, self.rect.y - 20, self.hp, 10))
+
+
+class Fireball(DangerousOrb):
+    image = load_image("fireball.png", -1)
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+        bullets.add(self)
+        self.remove(solids)
+        self.image = Fireball.image
+        self.rect.size = Fireball.image.get_size()
+        target_pos = complex(*pygame.mouse.get_pos())
+        pos = complex(self.rect.x, self.rect.y)
+        self.speed = (target_pos - pos) * (1 / abs(target_pos - pos)) * 20
+
+    def update(self):
+        self.rect.x += self.speed.real
+        self.rect.y += self.speed.imag
+        collided = pygame.sprite.spritecollide(self, solids, False)
+        if collided:
+            self.remove(*groups)
+        for i in collided:
+            if i.__class__ == DangerousOrb:
+                i.remove(*groups)
+            elif i.__class__ == BadTriangle:
+                i.hp -= 25
 
 
 class HitBox(pygame.sprite.Sprite):
@@ -272,10 +409,14 @@ object_colors = {
     "(195, 195, 195)": FakePlatform,
     "(255, 174, 201)": Health,
     "(163, 73, 164)": Ending,
-    "(136, 0, 21)": Spikes
+    "(136, 0, 21)": Spikes,
+    "(185, 122, 87)": DangerousOrb,
+    "(0, 162, 232)": UnstableWall,
+    "(200, 191, 231)": BadTriangle
 }
 
 
+# noinspection PyUnresolvedReferences
 def convert_map(picture, map_file_name):
     with Image.open(os.path.join("data", picture)) as im:
         with open(os.path.join("data", map_file_name), "w+", encoding="utf8") as map_file:
