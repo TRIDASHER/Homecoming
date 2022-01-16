@@ -11,6 +11,8 @@ there = False
 current_map = -1
 not_first = False
 levels = list()
+waiting = False
+countdown = 0
 
 try:
     with open(os.path.join("data", "progress"), "r", encoding="utf8") as progress:
@@ -55,57 +57,65 @@ if __name__ == "__main__":
         pygame.display.set_caption(f"{clock.get_fps()}")
         objects.update()
         objects.draw(canvas)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_F5:
-                    debug_hud = not debug_hud
-                if event.key == pygame.K_ESCAPE:
-                    there = False
-                    go_to_main_menu()
-            if event.type == pygame.USEREVENT:
-                if cont_button.is_pressed:
-                    go_to_level_choice()
-            if event == PLAYER_THERE:
-                for b in levels:
-                    if b.is_pressed:
-                        current_map = int(b.text)
-                there = True
-                if new_game.is_pressed:
-                    current_map = 1
+        if not waiting:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_F5:
+                        debug_hud = not debug_hud
+                    if event.key == pygame.K_ESCAPE:
+                        there = False
+                        go_to_main_menu()
+                if event.type == pygame.USEREVENT:
+                    if cont_button.is_pressed:
+                        go_to_level_choice()
+                if event == PLAYER_THERE:
+                    for b in levels:
+                        if b.is_pressed:
+                            current_map = int(b.text)
+                    there = True
+                    if new_game.is_pressed:
+                        current_map = 1
+                    player = open_map(f"map{current_map}.hcm")
+                if event == NEXT_LEVEL:
+                    there = True
+                    not_first = True
+                    current_map += 1
+                    with open(os.path.join("data", "progress"), "r", encoding="utf8") as progress:
+                        opened = int(progress.read())
+                    if opened < current_map:
+                        with open(os.path.join("data", "progress"), "w+", encoding="utf8") as progress:
+                            progress.write(str(current_map))
+                    player = open_map(f"map{current_map}.hcm")
+
+            if there:
+                if not player.alive:
+                    waiting = True
+                    countdown = 0
+                if player.rect.x >= 600:
+                    for i in everything:
+                        i.rect.x -= 5
+
+                elif player.rect.x <= 400:
+                    for i in everything:
+                        i.rect.x += 5
+
+                if player.rect.y <= 200:
+                    for i in everything:
+                        i.rect.y += 5
+
+                elif player.rect.y >= 400:
+                    for i in everything:
+                        i.rect.y -= 5
+                if debug_hud:
+                    player.debug()
+                player.draw_hud()
+        else:
+            countdown += 1
+            player.remove(*groups)
+            if countdown > 120:
+                waiting = False
                 player = open_map(f"map{current_map}.hcm")
-            if event == NEXT_LEVEL:
-                there = True
-                not_first = True
-                current_map += 1
-                with open(os.path.join("data", "progress"), "r", encoding="utf8") as progress:
-                    opened = int(progress.read())
-                if opened < current_map:
-                    with open(os.path.join("data", "progress"), "w+", encoding="utf8") as progress:
-                        progress.write(str(current_map))
-                player = open_map(f"map{current_map}.hcm")
-
-        if there:
-            if not player.alive:
-                player = open_map(f"map{current_map}.hcm")
-            if player.rect.x >= 600:
-                for i in everything:
-                    i.rect.x -= 5
-
-            elif player.rect.x <= 400:
-                for i in everything:
-                    i.rect.x += 5
-
-            if player.rect.y <= 200:
-                for i in everything:
-                    i.rect.y += 5
-
-            elif player.rect.y >= 400:
-                for i in everything:
-                    i.rect.y -= 5
-            if debug_hud:
-                player.debug()
-            player.draw_hud()
         pygame.display.flip()
 pygame.quit()
