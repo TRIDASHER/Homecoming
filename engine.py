@@ -97,13 +97,16 @@ class Player(pygame.sprite.Sprite):
                     self.speed += -21j
             if pygame.sprite.collide_rect(s, self.tp_hit_box):
                 self.rect.y += s.rect.y - self.rect.y - 90
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Fire, SmallBall]:
+                self.hurt(10)
+                s.speed = complex(*s.rect.center) - complex(*self.rect.center)
             if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Fire, DangerousOrb]:
                 self.hurt(25)
                 if s.__class__ == DangerousOrb:
                     s.speed = complex(*s.rect.center) - complex(*self.rect.center)
             if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Spikes, Glitch]:
                 self.hp = 0
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [BadTriangle]:
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [BadTriangle, BadPentagon]:
                 self.hurt(50)
             if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Ending:
                 pygame.event.post(NEXT_LEVEL)
@@ -230,7 +233,7 @@ class UnstableWall(SolidObject):
         super().__init__(*group, x=x, y=y)
 
     def update(self):
-        if random() * 120 > 117:
+        if random() * 120 > 118:
             self.remove(*groups)
             Glitch(x=self.rect.x, y=self.rect.y)
 
@@ -287,7 +290,7 @@ class DangerousOrb(pygame.sprite.Sprite):
         collided = pygame.sprite.spritecollide(self, solids, False)
         if collided:
             for i in collided:
-                if i.__class__ in [self.__class__, BadTriangle, BadPentagon]:
+                if i.__class__ in [self.__class__, BadTriangle, BadPentagon, SmallBall]:
                     self.speed += (complex(*self.rect.center) - complex(*i.rect.center)) / 3
 
 
@@ -337,18 +340,31 @@ class BadPentagon(BadTriangle):
         super().__init__(*groups, x=x, y=y)
         self.image = BadPentagon.image
         self.triggers = pygame.sprite.Group()
-        self.trigger = HitBox(self.triggers, x=self.rect.x - 180, y=self.rect.x - 180, w=450, h=450)
+        self.trigger = HitBox(self.triggers, x=self.rect.x - 270, y=self.rect.x - 270, w=630, h=530)
         self.summon_countdown = 0
 
     def update(self):
         super().update()
-        self.trigger.set_pos(self.rect.x - 180, self.rect.y - 180)
+        self.trigger.set_pos(self.rect.x - 270, self.rect.y - 270)
         if pygame.sprite.groupcollide(self.triggers, player_hit_boxes, False, False) and self.summon_countdown <= 0 \
                 and targets.sprites():
-            self.summon_countdown = 240
+            self.summon_countdown = 30
             ang = random() * 2 * pi
-            DangerousOrb(x=sin(ang) * 180 + self.rect.x, y=cos(ang) * 180 + self.rect.y)
+            SmallBall(x=sin(ang) * 180 + self.rect.x, y=cos(ang) * 180 + self.rect.y)
         self.summon_countdown -= 1
+
+
+class SmallBall(DangerousOrb):
+    image = load_image("small_ball.png", colorkey=-1)
+
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
+        self.image = SmallBall.image
+        self.rect.size = self.image.get_size()
+        self.hp = 25
+
+    def update(self):
+        super().update()
 
 
 class Fireball(DangerousOrb):
@@ -371,7 +387,7 @@ class Fireball(DangerousOrb):
         if collided:
             self.remove(*groups)
         for i in collided:
-            if i.__class__ in [DangerousOrb, BadTriangle, BadPentagon]:
+            if i.__class__ in [DangerousOrb, BadTriangle, BadPentagon, SmallBall]:
                 i.hp -= 25
 
 
@@ -398,6 +414,7 @@ class Platform(SolidObject):
 class FakePlatform(Platform):
     def __init__(self, *group, x, y):
         super().__init__(*group, x=x, y=y)
+        self.remove(solids)
 
     def update(self):
         if pygame.sprite.spritecollide(self, player_hit_boxes, False):
