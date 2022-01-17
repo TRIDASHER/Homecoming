@@ -91,6 +91,7 @@ if __name__ == "__main__":
                         current_map = 1
                     player = open_map(f"map{current_map}.csv")
                 if event == NEXT_LEVEL:
+                    back_color = choice([(255, 200, 200), (220, 255, 220), "white", (100, 220, 255)])
                     there = True
                     not_first = True
                     current_map += 1
