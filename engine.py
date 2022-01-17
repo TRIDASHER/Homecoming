@@ -22,6 +22,7 @@ groups = [player_hit_boxes, solids, objects, everything, entities, targets, bull
 STARTED = pygame.event.Event(pygame.USEREVENT)
 PLAYER_THERE = pygame.event.Event(pygame.USEREVENT + 2)
 NEXT_LEVEL = pygame.event.Event(pygame.USEREVENT + 1)
+END_OF_GAME = pygame.event.Event(pygame.USEREVENT + 3)
 
 
 def load_image(name, colorkey=None):
@@ -97,19 +98,24 @@ class Player(pygame.sprite.Sprite):
                     self.speed += -21j
             if pygame.sprite.collide_rect(s, self.tp_hit_box):
                 self.rect.y += s.rect.y - self.rect.y - 90
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Fire, SmallBall]:
-                self.hurt(10)
-                s.speed = complex(*s.rect.center) - complex(*self.rect.center)
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Fire, DangerousOrb]:
-                self.hurt(25)
-                if s.__class__ == DangerousOrb:
+            if pygame.sprite.spritecollide(s, player_hit_boxes, False):
+                if s.__class__ in [SmallBall]:
+                    self.hurt(10)
                     s.speed = complex(*s.rect.center) - complex(*self.rect.center)
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [Spikes, Glitch]:
-                self.hp = 0
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ in [BadTriangle, BadPentagon]:
-                self.hurt(50)
-            if pygame.sprite.spritecollide(s, player_hit_boxes, False) and s.__class__ == Ending:
-                pygame.event.post(NEXT_LEVEL)
+                elif s.__class__ in [Fire, DangerousOrb]:
+                    self.hurt(25)
+                    if s.__class__ == DangerousOrb:
+                        s.speed = complex(*s.rect.center) - complex(*self.rect.center)
+                elif s.__class__ in [Spikes]:
+                    self.hp = 0
+                elif s.__class__ == Glitch:
+                    self.hurt(7, no_delay=True)
+                elif s.__class__ in [BadTriangle, BadPentagon]:
+                    self.hurt(50)
+                elif s.__class__ == Ending:
+                    pygame.event.post(NEXT_LEVEL)
+                elif s.__class__ == GameEnding:
+                    pygame.event.post(END_OF_GAME)
         if abs(self.speed) >= 100:
             self.hurt(100)
 
@@ -132,14 +138,14 @@ class Player(pygame.sprite.Sprite):
 
         if pygame.sprite.groupcollide(player_hit_boxes, entities, False, False):
             sprites = pygame.sprite.groupcollide(player_hit_boxes, entities, False, False)
-            ent = [i[0] for i in list(sprites.values())]
+            ent = [iii[0] for iii in list(sprites.values())]
             classes = list(map(lambda z: z.__class__, ent))
             if Health in classes:
                 self.heal(25)
             if Key in classes:
                 self.keys += 1
-            for i in ent:
-                i.remove(*groups)
+            for ii in ent:
+                ii.remove(*groups)
 
         self.rect.x += self.speed.real
         self.rect.y += self.speed.imag
@@ -150,8 +156,8 @@ class Player(pygame.sprite.Sprite):
         if -0.2 <= self.speed.real < 0:
             self.speed = 0 + self.speed.imag * 1j
 
-        if self.hp <= 25:
-            for _ in range(5):
+        if self.hp <= 50:
+            for _ in range((55 - self.hp) // 2):
                 pygame.draw.rect(canvas, choice(["yellow", "black"]), pygame.Rect(self.rect.x + random() * 120 - 26,
                                                                                   self.rect.y + random() *
                                                                                   120 - 26, 20, 10))
@@ -160,13 +166,13 @@ class Player(pygame.sprite.Sprite):
             self.alive = False
 
     def debug(self):
-        for i in player_hit_boxes:
-            pygame.draw.rect(canvas, rect=i.rect, color="red")
+        for iiii in player_hit_boxes:
+            pygame.draw.rect(canvas, rect=iiii.rect, color="red")
         text = font.render(f"accel:{self.accel}, speed:{self.speed}, pos:{self.rect}", True, (255, 0, 0))
         canvas.blit(text, (0, 0))
 
-    def hurt(self, hp):
-        if self.damage_cooldown <= 0:
+    def hurt(self, hp, no_delay=False):
+        if self.damage_cooldown <= 0 or no_delay:
             self.hp -= hp if hp <= self.hp else self.hp
             self.damage_cooldown = 30
 
@@ -178,14 +184,14 @@ class Player(pygame.sprite.Sprite):
 
 
 class SolidObject(pygame.sprite.Sprite):
-    image = load_image("wall.png")
+    image = [load_image(f"wall{i}.png") for i in range(1, 6)]
 
     def __init__(self, *group, x, y):
         super().__init__(*group)
         everything.add(self)
         solids.add(self)
         objects.add(self)
-        self.image = SolidObject.image
+        self.image = choice(SolidObject.image)
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
@@ -197,6 +203,10 @@ class Ending(SolidObject):
     def __init__(self, *group, x, y):
         super().__init__(*group, x=x, y=y)
         self.image = Ending.image
+
+
+class GameEnding(Ending):
+    pass
 
 
 class Fire(SolidObject):
@@ -215,9 +225,12 @@ class Door(SolidObject):
         self.image = Door.image
 
     def update(self):
-        if pygame.sprite.spritecollide(self, player_hit_boxes, False) and targets.sprites()[0].keys:
-            self.remove(*groups)
-            targets.sprites()[0].keys -= 1
+        try:
+            if pygame.sprite.spritecollide(self, player_hit_boxes, False) and targets.sprites()[0].keys:
+                self.remove(*groups)
+                targets.sprites()[0].keys -= 1
+        except IndexError:
+            pass
 
 
 class Spikes(Fire):
@@ -289,9 +302,9 @@ class DangerousOrb(pygame.sprite.Sprite):
                          (self.rect.x, self.rect.y - 20, self.hp * 2, 10))
         collided = pygame.sprite.spritecollide(self, solids, False)
         if collided:
-            for i in collided:
-                if i.__class__ in [self.__class__, BadTriangle, BadPentagon, SmallBall]:
-                    self.speed += (complex(*self.rect.center) - complex(*i.rect.center)) / 3
+            for j in collided:
+                if j.__class__ in [self.__class__, BadTriangle, SmallBall]:
+                    self.speed += (complex(*self.rect.center) - complex(*j.rect.center)) / 3
 
 
 class BadTriangle(pygame.sprite.Sprite):
@@ -321,6 +334,7 @@ class BadTriangle(pygame.sprite.Sprite):
         self.right_down_box.set_pos(self.rect.x + 91, self.rect.y + 91)
         self.left_down_box.set_pos(self.rect.x - 1, self.rect.y + 91)
         blockers = pygame.sprite.Group(*player_hit_boxes.sprites(), *solids.sprites())
+        [k.remove(blockers) for k in blockers if k.__class__ == SmallBall]
         if pygame.sprite.spritecollide(self.left_box, blockers, False) or \
                 not pygame.sprite.spritecollide(self.left_down_box, blockers, False):
             self.speed = -self.speed
@@ -336,8 +350,8 @@ class BadTriangle(pygame.sprite.Sprite):
 class BadPentagon(BadTriangle):
     image = load_image("pentagon.png", colorkey=-1)
 
-    def __init__(self, *groups, x, y):
-        super().__init__(*groups, x=x, y=y)
+    def __init__(self, *group, x, y):
+        super().__init__(*group, x=x, y=y)
         self.image = BadPentagon.image
         self.triggers = pygame.sprite.Group()
         self.trigger = HitBox(self.triggers, x=self.rect.x - 270, y=self.rect.x - 270, w=630, h=530)
@@ -348,7 +362,7 @@ class BadPentagon(BadTriangle):
         self.trigger.set_pos(self.rect.x - 270, self.rect.y - 270)
         if pygame.sprite.groupcollide(self.triggers, player_hit_boxes, False, False) and self.summon_countdown <= 0 \
                 and targets.sprites():
-            self.summon_countdown = 30
+            self.summon_countdown = 50
             ang = random() * 2 * pi
             SmallBall(x=sin(ang) * 180 + self.rect.x, y=cos(ang) * 180 + self.rect.y)
         self.summon_countdown -= 1
@@ -386,9 +400,9 @@ class Fireball(DangerousOrb):
         collided = pygame.sprite.spritecollide(self, solids, False)
         if collided:
             self.remove(*groups)
-        for i in collided:
-            if i.__class__ in [DangerousOrb, BadTriangle, BadPentagon, SmallBall]:
-                i.hp -= 25
+        for jj in collided:
+            if jj.__class__ in [DangerousOrb, BadTriangle, BadPentagon, SmallBall]:
+                jj.hp -= 25
 
 
 class HitBox(pygame.sprite.Sprite):
@@ -456,6 +470,7 @@ class Button(pygame.sprite.Sprite):
         self.image = Button.image
         self.rect = pygame.rect.Rect(x, y, w, h)
         self.color = color
+        self.orig_color = self.color
         self.width = line_width
         self.rad = rad
         self.text = text
@@ -468,11 +483,13 @@ class Button(pygame.sprite.Sprite):
         pygame.draw.rect(canvas, self.color, self.rect, self.width, self.rad)
         text = font.render(self.text, False, "black")
         canvas.blit(text, (self.rect.x, self.rect.centery))
-        if pygame.mouse.get_pressed(3)[0]:
-            if self.rect.collidepoint(pygame.mouse.get_pos()):
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
+            self.color = (220, 220, 255)
+            if pygame.mouse.get_pressed(3)[0]:
                 self.clicked()
                 self.is_pressed = True
         else:
+            self.color = self.orig_color
             self.is_pressed = False
 
     def clicked(self):
@@ -498,7 +515,8 @@ object_colors = {
     "(200, 191, 231)": BadTriangle,
     "(112, 146, 190)": Key,
     "(255, 201, 14)": Door,
-    "(255, 127, 39)": BadPentagon
+    "(255, 127, 39)": BadPentagon,
+    "(255, 0, 0)": GameEnding
 }
 
 
@@ -523,8 +541,8 @@ def open_map(map_file_name):
     for g in groups:
         g.empty()
     with open(os.path.join("data", map_file_name)) as map_file:
-        for i in map_file.read().split("\n")[:-1]:
-            line = i.split(";")
+        for jjj in map_file.read().split("\n")[:-1]:
+            line = jjj.split(";")
             if object_colors[line[0]] == Player:
                 owner = object_colors[line[0]](x=int(line[1]), y=int(line[2]))
             else:
@@ -534,4 +552,8 @@ def open_map(map_file_name):
 
 if __name__ == '__main__':
     num_map = int(input("Map number:"))
-    convert_map(f"map{num_map}.png", f"map{num_map}.hcm")
+    if num_map != -1:
+        convert_map(f"map{num_map}.png", f"map{num_map}.csv")
+    else:
+        for i in range(int(input("Maps count:"))):
+            convert_map(f"map{i + 1}.png", f"map{i + 1}.csv")
