@@ -12,7 +12,7 @@ jobs:
       with:
         python-version: '3.x'
         architecture: 'x64'
-    - name: Install packages
+    - name: Install requirements
       run: |
         pip install -r requirements.txt
     - name: Build application
