@@ -1,0 +1,20 @@
+name: Build on Windows
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build exe
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+        architecture: 'x64'
+    - name: Install packages
+      run: |
+        pip install -r requirements.txt
+    - name: Build application
+      run: |
+        python --version
