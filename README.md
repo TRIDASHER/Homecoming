@@ -6,9 +6,9 @@ A 2D platform game based on the python language and the pygame library.
 You will play as a yellow square that travels through 2D dimensions.
 His goal is to go through all dimensions and return to his own.
 
-![example1](https://github.com/nikita-popov/Homecoming/blob/master/docs/example1.png?raw=true)
+<img src="https://github.com/nikita-popov/Homecoming/blob/master/docs/example1.png?raw=true" alt="example1" width="400"/>
 
-![example2](https://github.com/nikita-popov/Homecoming/blob/master/docs/example2.png?raw=true)
+<img src="https://github.com/nikita-popov/Homecoming/blob/master/docs/example2.png?raw=true" alt="example2" width="400"/>
 
 Game objects:
 
