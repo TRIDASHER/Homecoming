@@ -3,7 +3,7 @@ The best game ever
 
 A 2D platform game based on the python language and the pygame library.
 
-You will play as a yellow square that travels through 2D dimensions.
+You will play as a yellow square that travels through 2D dimensions.   
 His goal is to go through all dimensions and return to his own.
 
 <img src="https://github.com/nikita-popov/Homecoming/blob/master/docs/example1.png?raw=true" alt="example1" width="350"/>
@@ -33,13 +33,13 @@ The player's results are saved.
 
 ## Implementation features
 
-The engine.py file contains classes for all objects, functions for building and running the level, all sprite groups, and user events. Every object in the game is an instance of a class that inherits from Sprite.
+The engine.py file contains classes for all objects, functions for building and running the level, all sprite groups, and user events. Every object in the game is an instance of a class that inherits from Sprite.   
 The main.py file contains the game loop, saves the results, moves the camera behind the character, checks for events, exit functions to the main menu and the level selection menu.
 
-Each level is a csv file. It represents the color and coordinates of objects. The data is separated by the symbol ";".
-To create a level, you need to arrange the pixels of the corresponding color in a graphic editor, save the image in png format, after which you need to run the engine.py file and enter the level number. After that, a file will appear in the data folder, which can already be opened by the game as a level.
-Such level creation mechanics greatly facilitated development and made it possible to quickly add new levels without affecting the game code in any way.
-The player's progress is saved in the progress file.
+Each level is a csv file. It represents the color and coordinates of objects. The data is separated by the symbol ";".   
+To create a level, you need to arrange the pixels of the corresponding color in a graphic editor, save the image in png format, after which you need to run the engine.py file and enter the level number. After that, a file will appear in the data folder, which can already be opened by the game as a level.   
+Such level creation mechanics greatly facilitated development and made it possible to quickly add new levels without affecting the game code in any way.   
+The player's progress is saved in the progress file.   
 
 ## Usage
 
