@@ -30,6 +30,11 @@ except FileNotFoundError:
         progress.write(str(current_map))
 
 
+
+def d():
+    pass
+
+
 def game_ending():
     global ended
     ended = True
